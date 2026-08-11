@@ -7,7 +7,9 @@ FROM base AS deps
 RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
-RUN npm ci
+# Pin npm to the same version that generates package-lock.json locally (npm 11),
+# otherwise `npm ci` fails on npm 10's different dependency-tree resolution.
+RUN npm install -g npm@11.11.0 && npm ci
 
 FROM deps AS build
 COPY . .
