@@ -1,0 +1,49 @@
+# Render Blueprint — ClearView AI backend (Express + TypeScript + Puppeteer + MongoDB)
+#
+# How to deploy:
+#   1. Push this repo to GitHub.
+#   2. In the Render dashboard: New + > Blueprint, select the repo, confirm.
+#   3. Fill in the `sync: false` env vars (CLIENT_URL, MONGODB_URI, GEMINI_API_KEY)
+#      when prompted — JWT_SECRET is auto-generated.
+#   4. After the first deploy finishes, open the Render Shell for this service and run:
+#        npx tsx scripts/seed-demo.ts
+#      to create the demo user + demo report.
+# See README "Deployment (Vercel + Render)" for the full walkthrough.
+services:
+  - type: web
+    name: clearview-api
+    runtime: docker
+    rootDir: server
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # CORS allowlist. Set to your Vercel app URL, comma-separated for multiple:
+      # e.g. https://clearview.vercel.app
+      - key: CLIENT_URL
+        sync: false
+      # MongoDB Atlas connection string (M0 free cluster is fine).
+      # e.g. mongodb+srv://user:pass@cluster0.xxxxx.mongodb.net/clearview
+      - key: MONGODB_URI
+        sync: false
+      # Auto-generated once at first deploy; change from the dashboard if you want.
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      # Optional — leave blank to use heuristic (non-Gemini) summaries.
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.1-flash-lite
+      # Puppeteer: use the Chromium installed by the Dockerfile instead of a bundled download.
+      - key: PUPPETEER_SKIP_DOWNLOAD
+        value: "true"
+      - key: PUPPETEER_EXECUTABLE_PATH
+        value: /usr/bin/chromium
+      - key: RATE_LIMIT_WINDOW_MS
+        value: "900000"
+      - key: RATE_LIMIT_MAX
+        value: "200"
