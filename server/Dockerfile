@@ -17,7 +17,35 @@ RUN npm run build
 
 FROM node:20-alpine AS runner
 WORKDIR /app
-RUN apk add --no-cache chromium nss freetype harfbuzz ca-certificates ttf-freefont dumb-init
+# Full Chromium dependency set for Alpine (Puppeteer official list + extras).
+# The minimal set (chromium, nss, freetype, ...) fails at browser launch with
+# missing shared libraries on newer Alpine images.
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont \
+    dumb-init \
+    alsa-lib \
+    at-spi2-core \
+    dbus-libs \
+    gtk+3.0 \
+    libdrm \
+    libgbm \
+    libx11 \
+    libxcb \
+    libxcomposite \
+    libxdamage \
+    libxext \
+    libxfixes \
+    libxrandr \
+    libxrender \
+    libxtst \
+    libxshmfence \
+    mesa-gl \
+    zlib
 ENV NODE_ENV=production
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
