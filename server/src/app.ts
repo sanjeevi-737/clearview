@@ -14,6 +14,7 @@ import { logger } from "./utils/logger.js";
 const app = express();
 
 app.disable("x-powered-by");
+app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(

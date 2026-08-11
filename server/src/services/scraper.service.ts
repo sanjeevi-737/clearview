@@ -1,6 +1,7 @@
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import * as cheerio from "cheerio";
 import type { AnyNode } from "domhandler";
+import { existsSync } from "node:fs";
 import type {
   ScrapedSite,
   ScrapedHeading,
@@ -27,8 +28,12 @@ async function launchBrowser(): Promise<Browser> {
       "--disable-gpu",
     ],
   };
-  if (env.PUPPETEER_EXECUTABLE_PATH) {
-    launchOptions.executablePath = env.PUPPETEER_EXECUTABLE_PATH;
+  const configuredPath = env.PUPPETEER_EXECUTABLE_PATH;
+  const candidates = [configuredPath, "/usr/bin/chromium"].filter(
+    (p): p is string => typeof p === "string" && existsSync(p)
+  );
+  if (candidates.length > 0) {
+    launchOptions.executablePath = candidates[0];
   }
   try {
     return await puppeteer.launch(launchOptions);
