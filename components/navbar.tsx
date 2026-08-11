@@ -59,12 +59,6 @@ export default function Navbar() {
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Link
-            href="/dashboard"
-            className="rounded-lg px-3.5 py-2 text-sm text-slate-300 transition-colors hover:text-white"
-          >
-            Sign in
-          </Link>
           <Button size="sm" className="gap-1.5">
             <Link href="/dashboard" className="flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5" />

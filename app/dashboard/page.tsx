@@ -8,7 +8,6 @@ import {
   Sparkles,
   Loader2,
   ArrowLeft,
-  LogOut,
   Zap,
   AlertTriangle,
   ExternalLink,
@@ -16,10 +15,9 @@ import {
 import Logo from "@/components/logo";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import LoginForm from "@/components/dashboard/login-form";
 import AnalysisReport from "@/components/dashboard/analysis-report";
 import AnalysisSkeleton from "@/components/dashboard/analysis-skeleton";
-import { apiAnalyze, apiDemo } from "@/lib/api";
+import { DEMO_CREDENTIALS, apiAnalyze, apiDemo, apiLogin } from "@/lib/api";
 import { SAMPLE_ANALYSIS } from "@/lib/sample-analysis";
 import type { Analysis, ReportSource } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -41,8 +39,8 @@ export default function DashboardPage() {
   const [email, setEmail] = React.useState<string | null>(null);
   const [url, setUrl] = React.useState("https://example.com");
   const [status, setStatus] = React.useState<
-    "login" | "idle" | "running" | "done" | "failed"
-  >("login");
+    "idle" | "running" | "done" | "failed"
+  >("idle");
   const [analysis, setAnalysis] = React.useState<Analysis | null>(null);
   const [source, setSource] = React.useState<ReportSource>("live");
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -54,8 +52,18 @@ export default function DashboardPage() {
     if (stored) {
       setToken(stored);
       setEmail(window.localStorage.getItem(EMAIL_KEY));
-      setStatus("idle");
+      return;
     }
+    apiLogin(DEMO_CREDENTIALS.email, DEMO_CREDENTIALS.password)
+      .then(({ token }) => {
+        window.localStorage.setItem(TOKEN_KEY, token);
+        window.localStorage.setItem(EMAIL_KEY, DEMO_CREDENTIALS.email);
+        setToken(token);
+        setEmail(DEMO_CREDENTIALS.email);
+      })
+      .catch(() => {
+        // API unreachable — dashboard still works via demo/sample fallbacks.
+      });
   }, []);
 
   React.useEffect(() => {
@@ -66,23 +74,27 @@ export default function DashboardPage() {
     return () => clearInterval(id);
   }, [status]);
 
-  const handleAuthed = (newToken: string, authedEmail: string) => {
-    window.localStorage.setItem(TOKEN_KEY, newToken);
-    window.localStorage.setItem(EMAIL_KEY, authedEmail);
-    setToken(newToken);
-    setEmail(authedEmail);
-    setStatus("idle");
-  };
-
-  const handleLogout = () => {
-    window.localStorage.removeItem(TOKEN_KEY);
-    window.localStorage.removeItem(EMAIL_KEY);
-    setToken(null);
-    setEmail(null);
-    setAnalysis(null);
-    setSource("live");
-    setNotice(null);
-    setStatus("login");
+  const ensureToken = async (): Promise<string | null> => {
+    if (token) return token;
+    const stored = window.localStorage.getItem(TOKEN_KEY);
+    if (stored) {
+      setToken(stored);
+      setEmail(window.localStorage.getItem(EMAIL_KEY));
+      return stored;
+    }
+    try {
+      const { token: fresh } = await apiLogin(
+        DEMO_CREDENTIALS.email,
+        DEMO_CREDENTIALS.password
+      );
+      window.localStorage.setItem(TOKEN_KEY, fresh);
+      window.localStorage.setItem(EMAIL_KEY, DEMO_CREDENTIALS.email);
+      setToken(fresh);
+      setEmail(DEMO_CREDENTIALS.email);
+      return fresh;
+    } catch {
+      return null;
+    }
   };
 
   const applyAnalysis = (result: Analysis, src: ReportSource) => {
@@ -94,27 +106,35 @@ export default function DashboardPage() {
 
   const runAnalyze = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!token || status === "running") return;
+    if (status === "running") return;
     setProgress(0);
     setStatus("running");
     setAnalysis(null);
     setNotice(null);
-    try {
-      const result = await apiAnalyze(token, url.trim());
-      applyAnalysis(result, "live");
-    } catch (err) {
+    const authToken = await ensureToken();
+    if (authToken) {
       try {
-        const fallback = await apiDemo();
+        const result = await apiAnalyze(authToken, url.trim());
+        applyAnalysis(result, "live");
+        return;
+      } catch (err) {
         setNotice(
           `Live analysis failed (${err instanceof Error ? err.message : "error"}) — showing the seeded demo report instead.`
         );
-        applyAnalysis(fallback, "demo");
-      } catch {
-        setNotice(
-          "Live analysis is unavailable right now. Showing bundled sample data instead."
-        );
-        applyAnalysis(SAMPLE_ANALYSIS, "sample");
       }
+    } else {
+      setNotice(
+        "Live analysis is unavailable right now — showing the demo report instead."
+      );
+    }
+    try {
+      const fallback = await apiDemo();
+      applyAnalysis(fallback, "demo");
+    } catch {
+      setNotice(
+        "No demo report on the server yet — showing bundled sample data."
+      );
+      applyAnalysis(SAMPLE_ANALYSIS, "sample");
     }
   };
 
@@ -170,38 +190,17 @@ export default function DashboardPage() {
               <ArrowLeft className="h-4 w-4" />
               Back to site
             </Link>
-            {token ? (
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="hidden sm:flex">
-                  {email ?? "Signed in"}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleLogout}
-                  className="gap-1.5 text-slate-300"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Sign out
-                </Button>
-              </div>
-            ) : (
-              <Link
-                href="/"
-                className="rounded-lg px-3.5 py-2 text-sm text-slate-300 transition-colors hover:text-white"
-              >
-                Back to site
-              </Link>
+            {token && (
+              <Badge variant="outline" className="hidden sm:flex">
+                {email ?? "Signed in as demo"}
+              </Badge>
             )}
           </div>
         </div>
       </header>
 
       <main className="section-shell relative z-10 mt-10">
-        {!token ? (
-          <LoginForm onAuthed={handleAuthed} />
-        ) : (
-          <div className="space-y-6">
+        <div className="space-y-6">
             <div className="flex flex-col items-center gap-2 text-center">
               <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl">
                 Analyze any website in{" "}
@@ -334,7 +333,6 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-        )}
       </main>
     </div>
   );
