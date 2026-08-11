@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { analysisService } from "../services/analysis.service.js";
+import { demoService } from "../services/demo.service.js";
 import { generatePdfReport } from "../services/pdf.service.js";
 import { ApiError } from "../utils/ApiError.js";
 import type { AnalyzeInput, PaginationInput, ObjectIdInput } from "../validations/analysis.schema.js";
@@ -50,7 +51,7 @@ export const analysisController = {
    *         description: No demo report seeded yet
    */
   demo: asyncHandler(async (_req: Request, res: Response) => {
-    const analysis = await analysisService.demo();
+    const analysis = await demoService.demoReport();
     if (!analysis) {
       throw new ApiError(404, "No demo report available");
     }

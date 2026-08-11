@@ -121,10 +121,6 @@ export const analysisService = {
     return this.analyze(userId, normalized, { demo: true, skipCache: true });
   },
 
-  async demo() {
-    return analysisRepository.findDemoReport();
-  },
-
   async history(userId: string, page: number, limit: number) {
     return analysisRepository.findByUserPaginated(userId, page, limit);
   },
